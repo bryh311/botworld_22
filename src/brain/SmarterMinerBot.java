@@ -4,6 +4,9 @@ package brain; //packages are used to organize code in Java.
 
 import actor.*;
 import grid.Location;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * @author Spock
@@ -14,21 +17,28 @@ public class SmarterMinerBot extends BotBrain
     public int chooseAction()
     {
         Location myLoc = new Location(getRow(), getCol());
-//        PathFinder(myLoc, 1);
-//        for(int r=0; r<values.length; r++) {
-//            for (int c = 0; c < values[0].length; c++) {
-//                System.out.print(values[r][c] + ", ");
-//            }
-//            System.out.println();
-//        }
+        //TODO FIX OUT OF BOUNDS ERROR
+        ArrayList<Location> locationHistory = new ArrayList<>();
+        if(getMoveNumber() == 1)
+            locationHistory.add(myLoc);
+        else
+            addCurrentLoc(locationHistory);
+
+
+        System.out.println(locationHistory.get(getMoveNumber()-1).getCol());
+        //System.out.println(getMoveNumber());
+        int randomDirection = (int)(Math.random()*8)*45;
+
         //Mine a Rock if you are beside it.
         if(directionTowardsAdjacentRock() != -1)
             return MINE+directionTowardsAdjacentRock();
-        int randomDirection = (int)(Math.random()*8)*45;
+
         int dirTowardsNearestRock = myLoc.getDirectionToward(locationOfNearestRock());
-        Location next = myLoc.getAdjacentLocation(dirTowardsNearestRock);
+        int dirTowardsNextStepInPath = myLoc.getDirectionToward(pathStep(locationOfNearestRock(), locationHistory));
+
+        Location next = myLoc.getAdjacentLocation(dirTowardsNextStepInPath);
         if(next.isValidLocation() && getArena()[next.getRow()][next.getCol()]==null)
-            return dirTowardsNearestRock;
+            return dirTowardsNextStepInPath;
         else if(getArena()[next.getRow()][next.getCol()] instanceof Wall) {
             return randomDirection;
         }
@@ -54,39 +64,57 @@ public class SmarterMinerBot extends BotBrain
         
         return result;
     }
+
+    public int directionTowardsNextStepInPath() {
+        return 1;
+    }
+    public void addCurrentLoc(ArrayList<Location> currentLoc) {
+        currentLoc.add(new Location(getRow(), getCol()));
+    }
+
+    public Location pathStep(Location goal, ArrayList<Location> history) {
+        //TODO MAKE HISTORY WORK CORRECTLY
+        HashMap<Integer, Location> valuesAndDirs = new HashMap<>();
+        GameObject theArena[][] = getArena();
+        Location myLoc = new Location(getRow(), getCol());
+        for(int dir=0; dir<360; dir+=45) {
+            Location next = myLoc.getAdjacentLocation(dir);
+            int counter = 0;
+            try {
+                if (theArena[next.getRow()][next.getCol()] instanceof Wall || theArena[next.getRow()][next.getCol()] instanceof Rock)
+                    counter += 1000;
+            } catch(Exception e) {
+                counter += 1000;
+            }
+            if(next.distanceTo(goal) > myLoc.distanceTo(goal))
+                counter += 20;
+            else if(next.distanceTo(goal) == myLoc.distanceTo(goal))
+                counter += 10;
+            try {
+                if (history.get(getMoveNumber()) == next)
+                    counter += 300;
+                else if(history.get(getMoveNumber()-2) == next)
+                    counter += 400;
+            } catch(Exception f) {}
+
+            valuesAndDirs.put(counter, next);
+        }
+        Location returnLoc;
+        int k = 4000;
+        for(Map.Entry mapElement: valuesAndDirs.entrySet()) {
+            if((int) mapElement.getKey() < k)
+                k = (int) mapElement.getKey();
+        }
+        return valuesAndDirs.get(k);
+    }
+
    // public int values[][] = new int[getArena().length][getArena()[0].length];
     public void initValues(int[][] val) {
         for(int r=0; r<val.length; r++)
             for(int c=0; c<val[0].length; c++)
                 val[r][c]=0;
     }
-/*
-    public void PathFinder(Location current, int pathnum) {
-        GameObject theArena[][] = getArena();
-        if(theArena[current.getRow()][current.getCol()] != null ||
-                theArena[current.getRow()][current.getCol()] instanceof Scissors ||
-                theArena[current.getRow()][current.getCol()] instanceof Paper) {
-            values[current.getRow()][current.getCol()] = 1000;
 
-        }
-        else
-            values[current.getRow()][current.getCol()] = pathnum;
-        int counter = 0;
-        for(int r=0; r<values.length; r++) {
-            for(int c=0; c<values[0].length; c++) {
-                if(values[r][c] != 0)
-                    counter++;
-            }
-        }
-        if (!(counter == (theArena.length * theArena[0].length))) {
-            for (int dir = 0; dir < 360; dir += 45) {
-                Location next = current.getAdjacentLocation(dir);
-                PathFinder(next, pathnum + 1);
-            }
-        }
-
-    }
- */
     public Location locationOfRock() {
         GameObject theArena[][] = getArena();
         for(int r=0; r<theArena.length; r++)
